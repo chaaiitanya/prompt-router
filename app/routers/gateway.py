@@ -1,5 +1,5 @@
 """
-app/routers/gateway.py — The main API endpoint (Phase 3: real routing strategies).
+app/routers/gateway.py — The main API endpoint (Phase 4: semantic cache).
 
 CONCEPT: provider_override vs routing strategy
   Two ways to pick a provider:
@@ -24,9 +24,11 @@ CONCEPT: try/except for provider errors
 """
 
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 
+from app.cache import SemanticCache
 from app.config import settings
 from app.models import ChatRequest, ChatResponse
 from app.providers.base import LLMProvider
@@ -52,6 +54,11 @@ _PROVIDERS: dict[str, LLMProvider] = {
     "anthropic": AnthropicProvider(),
     "groq":      GroqProvider(),
 }
+
+# ── Cache (injected at startup by main.py lifespan) ───────────────────────────
+# Set to None until Redis is connected. The handler checks before using it so
+# the gateway degrades gracefully if Redis is unavailable at startup.
+cache: Optional[SemanticCache] = None
 
 
 def _pick_provider(request: ChatRequest) -> tuple[LLMProvider, str]:
@@ -91,19 +98,27 @@ def _pick_provider(request: ChatRequest) -> tuple[LLMProvider, str]:
 )
 async def chat_completions(request: ChatRequest) -> ChatResponse:
     """
-    Main gateway handler (Phase 3).
+    Main gateway handler (Phase 4).
 
     Flow:
-      1. Pick provider via strategy               ← Phase 2
-      2. Call provider.complete()                 ← Phase 2
-      3. Record latency for future fastest picks  ← Phase 3
-      4. Calculate cost from token counts         ← Phase 2
-      5. Return enriched ChatResponse             ← Phase 2
+      1. Check semantic cache — return immediately on hit (cost = $0)  ← Phase 4
+      2. Pick provider via strategy                                     ← Phase 2+3
+      3. Call provider.complete()                                       ← Phase 2
+      4. Record latency for future fastest picks                        ← Phase 3
+      5. Calculate cost from token counts                               ← Phase 2
+      6. Store response in cache for future hits                        ← Phase 4
+      7. Return enriched ChatResponse                                   ← Phase 2
 
-    Phase 4 will add: semantic cache check before calling provider
     Phase 5 will add: cost_tracker.record() call
     Phase 6 will add: prometheus metrics
     """
+    # ── Cache lookup ─────────────────────────────────────────────────────────
+    if cache is not None:
+        cached_response = await cache.get(request.messages)
+        if cached_response is not None:
+            logger.info("Serving from semantic cache")
+            return cached_response
+
     provider, strategy_label = _pick_provider(request)
 
     logger.info(
@@ -126,8 +141,6 @@ async def chat_completions(request: ChatRequest) -> ChatResponse:
         ) from exc
 
     # ── Record latency for future fastest-strategy picks ─────────────────────
-    # We do this before the cost block so the data is available immediately
-    # for the next request even if cost calculation somehow raises.
     latency_tracker.record(provider.name, result.latency_ms)
 
     # ── Calculate cost ───────────────────────────────────────────────────────
@@ -144,7 +157,7 @@ async def chat_completions(request: ChatRequest) -> ChatResponse:
         total_cost, result.latency_ms,
     )
 
-    return ChatResponse(
+    response = ChatResponse(
         content=result.content,
         provider=provider.name,
         model=result.model,
@@ -155,3 +168,9 @@ async def chat_completions(request: ChatRequest) -> ChatResponse:
         cached=False,
         strategy_used=strategy_label,
     )
+
+    # ── Store in cache ────────────────────────────────────────────────────────
+    if cache is not None:
+        await cache.set(request.messages, response)
+
+    return response

@@ -28,9 +28,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from redis.asyncio import Redis
 
+from app.cache import SemanticCache
 from app.config import settings
 from app.models import HealthResponse
+from app.routers import gateway as gateway_module
 from app.routers.gateway import router as gateway_router
 
 
@@ -56,23 +59,23 @@ async def lifespan(app: FastAPI):
     """
     Code before `yield` runs at startup.
     Code after `yield` runs at shutdown.
-
-    In later phases we'll:
-      - Connect to Redis here
-      - Initialise the semantic cache
-      - Warm up provider clients
     """
     logger.info("Starting LLM Gateway (env=%s)", settings.app_env)
 
     # ── Startup ──
-    # Phase 4+: redis_client = await connect_redis(settings.redis_url)
+    redis = Redis.from_url(settings.redis_url, decode_responses=False)
+    cache = SemanticCache(redis)
+    # Inject into the gateway module so the route handler can use it
+    gateway_module.cache = cache
+    logger.info("Redis connected | url=%s", settings.redis_url)
     logger.info("Gateway ready")
 
     yield  # ← the app runs while we're paused here
 
     # ── Shutdown ──
     logger.info("Shutting down gateway")
-    # Phase 4+: await redis_client.aclose()
+    await cache.close()
+    await redis.aclose()
 
 
 # ── App factory ───────────────────────────────────────────────────────────────
