@@ -26,8 +26,9 @@ import logging
 import logging.config
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from redis.asyncio import Redis
 
 from app.cache import SemanticCache
@@ -115,6 +116,24 @@ app.add_middleware(
 # Include the gateway router — this adds POST /v1/chat/completions
 app.include_router(gateway_router, tags=["Gateway"])
 app.include_router(spend_router)
+
+
+@app.get("/metrics", tags=["Ops"], include_in_schema=False)
+async def metrics() -> Response:
+    """
+    Prometheus scrape endpoint.
+
+    CONCEPT: include_in_schema=False
+      Hides this endpoint from /docs — it's only useful for Prometheus,
+      not for API consumers. Keeps the docs clean.
+
+    Prometheus scrapes this URL every N seconds (configured in prometheus.yml).
+    The response is plain text in the Prometheus exposition format:
+      # HELP llm_requests_total Total number of LLM requests ...
+      # TYPE llm_requests_total counter
+      llm_requests_total{cached="false",model="...",provider="groq"} 42.0
+    """
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Ops"])

@@ -1,5 +1,5 @@
 """
-app/routers/gateway.py — The main API endpoint (Phase 4: semantic cache).
+app/routers/gateway.py — The main API endpoint (Phase 6: Prometheus metrics).
 
 CONCEPT: provider_override vs routing strategy
   Two ways to pick a provider:
@@ -31,6 +31,7 @@ from fastapi import APIRouter, HTTPException
 from app.cache import SemanticCache
 from app.config import settings
 from app.cost_tracker import CostTracker
+from app.metrics import record_cache_hit, record_cache_miss, record_provider_error, record_request
 from app.models import ChatRequest, ChatResponse
 from app.providers.base import LLMProvider
 from app.providers.openai_provider import OpenAIProvider
@@ -108,18 +109,20 @@ async def chat_completions(request: ChatRequest) -> ChatResponse:
       3. Call provider.complete()                                       ← Phase 2
       4. Record latency for future fastest picks                        ← Phase 3
       5. Calculate cost from token counts                               ← Phase 2
-      6. Persist spend to Redis via cost_tracker.record()               ← Phase 5
-      7. Store response in cache for future hits                        ← Phase 4
-      8. Return enriched ChatResponse                                   ← Phase 2
-
-    Phase 6 will add: prometheus metrics
+      6. Emit Prometheus metrics                                        ← Phase 6
+      7. Persist spend to Redis via cost_tracker.record()               ← Phase 5
+      8. Store response in cache for future hits                        ← Phase 4
+      9. Return enriched ChatResponse                                   ← Phase 2
     """
     # ── Cache lookup ─────────────────────────────────────────────────────────
     if cache is not None:
         cached_response = await cache.get(request.messages)
         if cached_response is not None:
             logger.info("Serving from semantic cache")
+            record_cache_hit()
             return cached_response
+
+    record_cache_miss()
 
     provider, strategy_label = _pick_provider(request)
 
@@ -137,6 +140,7 @@ async def chat_completions(request: ChatRequest) -> ChatResponse:
     except Exception as exc:
         # Log the real error server-side, return a safe message to the client
         logger.error("Provider %s failed: %s", provider.name, exc, exc_info=True)
+        record_provider_error(provider.name)
         raise HTTPException(
             status_code=502,
             detail=f"Provider '{provider.name}' returned an error. Check server logs.",
@@ -169,6 +173,16 @@ async def chat_completions(request: ChatRequest) -> ChatResponse:
         latency_ms=result.latency_ms,
         cached=False,
         strategy_used=strategy_label,
+    )
+
+    # ── Emit Prometheus metrics ───────────────────────────────────────────────
+    record_request(
+        provider=provider.name,
+        model=result.model,
+        latency_ms=result.latency_ms,
+        input_tokens=result.input_tokens,
+        output_tokens=result.output_tokens,
+        cost_usd=total_cost,
     )
 
     # ── Persist spend ─────────────────────────────────────────────────────────
