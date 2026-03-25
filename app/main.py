@@ -28,7 +28,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from redis.asyncio import Redis
 
 from app.cache import SemanticCache
@@ -39,7 +39,6 @@ from app.routers import gateway as gateway_module
 from app.routers import spend as spend_module
 from app.routers.gateway import router as gateway_router
 from app.routers.spend import router as spend_router
-
 
 # ── Logging setup ─────────────────────────────────────────────────────────────
 

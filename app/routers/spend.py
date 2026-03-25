@@ -15,7 +15,7 @@ CONCEPT: query parameters
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.cost_tracker import CostTracker
 from app.models import SpendSummaryResponse, SpendWindowResponse

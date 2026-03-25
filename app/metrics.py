@@ -36,7 +36,7 @@ CONCEPT: module-level singletons
   from here — no re-registration, no duplication.
 """
 
-from prometheus_client import Counter, Histogram, REGISTRY
+from prometheus_client import Counter, Histogram
 
 # ── Request counters ──────────────────────────────────────────────────────────
 

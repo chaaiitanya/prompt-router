@@ -11,8 +11,8 @@ CONCEPT: Anthropic's API differences from OpenAI
   contained here and invisible to the rest of the app.
 """
 
-import time
 import logging
+import time
 from typing import Optional
 
 import anthropic

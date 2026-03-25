@@ -11,10 +11,9 @@ CONCEPT: what to test
 
 import pytest
 
-from app.routing import LatencyTracker, pick_cheapest, pick_fastest, pick_by_task_type
-from app.providers.base import LLMProvider, ProviderResponse
 from app.models import Message
-
+from app.providers.base import LLMProvider, ProviderResponse
+from app.routing import LatencyTracker, pick_by_task_type, pick_cheapest, pick_fastest
 
 # ── Fake providers ─────────────────────────────────────────────────────────────
 

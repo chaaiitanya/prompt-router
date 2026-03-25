@@ -12,12 +12,9 @@ CONCEPT: testing async code with pytest-asyncio
   in pytest config. We use explicit marks for clarity.
 """
 
-import json
-import time
 import pytest
 
 from app.cost_tracker import CostTracker
-
 
 # ── Fake Redis ─────────────────────────────────────────────────────────────────
 

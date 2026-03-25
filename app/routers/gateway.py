@@ -33,11 +33,11 @@ from app.config import settings
 from app.cost_tracker import CostTracker
 from app.metrics import record_cache_hit, record_cache_miss, record_provider_error, record_request
 from app.models import ChatRequest, ChatResponse
-from app.providers.base import LLMProvider
-from app.providers.openai_provider import OpenAIProvider
 from app.providers.anthropic_provider import AnthropicProvider
+from app.providers.base import LLMProvider
 from app.providers.groq_provider import GroqProvider
-from app.routing import latency_tracker, pick_cheapest, pick_fastest, pick_by_task_type
+from app.providers.openai_provider import OpenAIProvider
+from app.routing import latency_tracker, pick_by_task_type, pick_cheapest, pick_fastest
 
 logger = logging.getLogger(__name__)
 

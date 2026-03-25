@@ -41,7 +41,6 @@ CONCEPT: spend analytics endpoint
 import json
 import logging
 import time
-from typing import Optional
 
 from redis.asyncio import Redis
 
@@ -95,8 +94,8 @@ class CostTracker:
             pipe.hincrbyfloat(_TOTALS_KEY, f"provider:{provider}", cost_usd)
             pipe.hincrbyfloat(_TOTALS_KEY, f"model:{model}", cost_usd)
             pipe.hincrby(_TOTALS_KEY, "request_count", 1)
-            pipe.hincrby(_TOTALS_KEY, f"tokens:input", input_tokens)
-            pipe.hincrby(_TOTALS_KEY, f"tokens:output", output_tokens)
+            pipe.hincrby(_TOTALS_KEY, "tokens:input", input_tokens)
+            pipe.hincrby(_TOTALS_KEY, "tokens:output", output_tokens)
 
             # Store request detail in sorted set (score = current Unix time)
             entry = json.dumps({

@@ -11,25 +11,22 @@ CONCEPT: testing Prometheus metrics
   when used as a context manager.
 """
 
-import pytest
-from contextlib import contextmanager
 
-from prometheus_client import REGISTRY
+import pytest
 
 from app.metrics import (
-    REQUEST_TOTAL,
-    PROVIDER_ERRORS_TOTAL,
     CACHE_HITS_TOTAL,
     CACHE_MISSES_TOTAL,
-    REQUEST_DURATION,
-    TOKENS_TOTAL,
     COST_USD_TOTAL,
+    PROVIDER_ERRORS_TOTAL,
+    REQUEST_DURATION,
+    REQUEST_TOTAL,
+    TOKENS_TOTAL,
     record_cache_hit,
     record_cache_miss,
     record_provider_error,
     record_request,
 )
-
 
 # ── Helper ─────────────────────────────────────────────────────────────────────
 
@@ -49,7 +46,6 @@ def _unlabelled_counter_value(counter) -> float:
 def _histogram_count(histogram, labels: dict) -> float:
     """Read the observation count from a labelled Histogram via collect()."""
     try:
-        label_values = tuple(labels[k] for k in histogram._labelnames)
         for metric in histogram.collect():
             for sample in metric.samples:
                 if sample.name.endswith("_count") and sample.labels == labels:

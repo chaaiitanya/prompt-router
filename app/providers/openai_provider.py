@@ -17,8 +17,8 @@ CONCEPT: AsyncOpenAI vs OpenAI
   Always use the async client in an async FastAPI app.
 """
 
-import time
 import logging
+import time
 from typing import Optional
 
 from openai import AsyncOpenAI

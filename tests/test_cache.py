@@ -12,13 +12,13 @@ CONCEPT: mocking external dependencies
 """
 
 import json
-import pytest
+from unittest.mock import AsyncMock
+
 import numpy as np
-from unittest.mock import AsyncMock, MagicMock, patch
+import pytest
 
 from app.cache import SemanticCache, _cosine_similarity, _messages_to_text
 from app.models import ChatResponse, Message
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 

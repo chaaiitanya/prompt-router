@@ -8,8 +8,8 @@ CONCEPT: conftest.py
 """
 
 import pytest
-from app.models import Message
 
+from app.models import Message
 
 # ── Common message factories ───────────────────────────────────────────────────
 
