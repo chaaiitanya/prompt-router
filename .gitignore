@@ -1,0 +1,14 @@
+# Secrets — never commit real API keys
+.env
+
+# Python virtual environment
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Editor
+.DS_Store
+.vscode/
+*.swp

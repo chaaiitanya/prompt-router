@@ -1,0 +1,29 @@
+# Web framework — FastAPI is the modern async Python web framework
+# uvicorn is the server that runs it (like gunicorn but async-aware)
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Data validation — Pydantic lets us define typed request/response shapes
+# pydantic-settings reads config from .env files automatically
+pydantic==2.10.4
+pydantic-settings==2.7.0
+
+# LLM provider SDKs
+openai==1.58.1          # GPT-4o, text-embedding-3-small
+anthropic==0.43.0       # Claude 3.5 Haiku / Sonnet
+groq==0.13.0            # Llama 3.1 (ultra cheap & fast)
+
+# Redis client — we use Redis for caching + cost tracking storage
+redis==5.2.1
+
+# Numpy — for cosine similarity math in the semantic cache
+numpy==1.26.4
+
+# Prometheus — exposes /metrics endpoint for Grafana to scrape
+prometheus-client==0.21.1
+
+# Dev / test tools
+pytest==8.3.4
+pytest-asyncio==0.25.0
+httpx==0.28.1           # async HTTP client used by FastAPI test client
+python-dotenv==1.0.1    # loads .env in local dev
