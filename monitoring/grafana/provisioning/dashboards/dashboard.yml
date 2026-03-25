@@ -1,0 +1,10 @@
+# Tell Grafana where to find pre-built dashboard JSON files.
+apiVersion: 1
+
+providers:
+  - name: LLM Gateway
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards

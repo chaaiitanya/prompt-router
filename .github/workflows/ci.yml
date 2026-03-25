@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt ruff
+
+      - name: Lint (ruff)
+        run: ruff check app/ tests/
+
+      - name: Run tests
+        # Tests use fake Redis / mock embeddings — no real services needed
+        env:
+          OPENAI_API_KEY: sk-fake
+          ANTHROPIC_API_KEY: sk-ant-fake
+          GROQ_API_KEY: gsk_fake
+        run: pytest tests/ -v --tb=short

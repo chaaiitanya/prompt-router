@@ -1,0 +1,19 @@
+# monitoring/prometheus.yml — Prometheus scrape configuration
+#
+# CONCEPT: scrape_configs
+#   Each job defines a target (host:port) that Prometheus will GET /metrics
+#   on the configured interval. The gateway exposes metrics at /metrics.
+#
+# In docker-compose, the gateway is reachable at http://gateway:8000
+# because all services share the same compose network.
+
+global:
+  scrape_interval: 15s       # How often to scrape targets
+  evaluation_interval: 15s   # How often to evaluate alerting rules
+
+scrape_configs:
+  - job_name: llm_gateway
+    static_configs:
+      - targets:
+          - gateway:8000
+    metrics_path: /metrics

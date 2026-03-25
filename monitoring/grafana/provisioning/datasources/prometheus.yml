@@ -1,0 +1,15 @@
+# Auto-provision the Prometheus datasource so Grafana is ready on first boot.
+# CONCEPT: provisioning
+#   Grafana can be configured via YAML files instead of the UI.
+#   Files in /etc/grafana/provisioning/ are read at startup.
+#   This means the whole stack is reproducible — no manual setup steps.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

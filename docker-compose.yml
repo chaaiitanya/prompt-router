@@ -1,0 +1,95 @@
+# docker-compose.yml — Full local stack: gateway + Redis + Prometheus + Grafana
+#
+# CONCEPT: docker-compose
+#   Compose lets you define a multi-container application in one file.
+#   `docker compose up` starts everything; `docker compose down` tears it down.
+#   Services can reference each other by name (e.g. redis:6379) because
+#   Compose puts them all on the same internal network automatically.
+#
+# Usage:
+#   cp .env.example .env          # fill in real API keys
+#   docker compose up             # start all services
+#   docker compose up --build     # rebuild app image first
+#   docker compose down -v        # stop and delete volumes
+
+services:
+
+  # ── LLM Gateway ─────────────────────────────────────────────────────────────
+  gateway:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      # Override redis URL to use the compose service name
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    # Persist data across restarts (RDB snapshot every 60s if ≥1 key changed)
+    command: redis-server --save 60 1 --loglevel warning
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Prometheus ───────────────────────────────────────────────────────────────
+  # CONCEPT: Prometheus scrapes /metrics on a schedule and stores time-series.
+  # Grafana then queries Prometheus to build dashboards.
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"          # allows config reload via HTTP POST
+    restart: unless-stopped
+    depends_on:
+      - gateway
+
+  # ── Grafana ──────────────────────────────────────────────────────────────────
+  # CONCEPT: Grafana reads from Prometheus and renders dashboards.
+  # We provision the datasource and dashboard automatically via config files
+  # so the dashboard appears on first boot — no manual clicks needed.
+  grafana:
+    image: grafana/grafana:10.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin      # change in production
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/llm-gateway.json
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+volumes:
+  redis_data:
+  prometheus_data:
+  grafana_data:
