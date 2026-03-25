@@ -30,6 +30,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.cache import SemanticCache
 from app.config import settings
+from app.cost_tracker import CostTracker
 from app.models import ChatRequest, ChatResponse
 from app.providers.base import LLMProvider
 from app.providers.openai_provider import OpenAIProvider
@@ -55,10 +56,11 @@ _PROVIDERS: dict[str, LLMProvider] = {
     "groq":      GroqProvider(),
 }
 
-# ── Cache (injected at startup by main.py lifespan) ───────────────────────────
-# Set to None until Redis is connected. The handler checks before using it so
-# the gateway degrades gracefully if Redis is unavailable at startup.
+# ── Cache + cost tracker (injected at startup by main.py lifespan) ───────────
+# Both are None until Redis connects. Handlers check before using so the
+# gateway degrades gracefully if Redis is unavailable at startup.
 cache: Optional[SemanticCache] = None
+cost_tracker: Optional[CostTracker] = None
 
 
 def _pick_provider(request: ChatRequest) -> tuple[LLMProvider, str]:
@@ -106,10 +108,10 @@ async def chat_completions(request: ChatRequest) -> ChatResponse:
       3. Call provider.complete()                                       ← Phase 2
       4. Record latency for future fastest picks                        ← Phase 3
       5. Calculate cost from token counts                               ← Phase 2
-      6. Store response in cache for future hits                        ← Phase 4
-      7. Return enriched ChatResponse                                   ← Phase 2
+      6. Persist spend to Redis via cost_tracker.record()               ← Phase 5
+      7. Store response in cache for future hits                        ← Phase 4
+      8. Return enriched ChatResponse                                   ← Phase 2
 
-    Phase 5 will add: cost_tracker.record() call
     Phase 6 will add: prometheus metrics
     """
     # ── Cache lookup ─────────────────────────────────────────────────────────
@@ -168,6 +170,19 @@ async def chat_completions(request: ChatRequest) -> ChatResponse:
         cached=False,
         strategy_used=strategy_label,
     )
+
+    # ── Persist spend ─────────────────────────────────────────────────────────
+    if cost_tracker is not None:
+        await cost_tracker.record(
+            provider=provider.name,
+            model=result.model,
+            cost_usd=total_cost,
+            input_tokens=result.input_tokens,
+            output_tokens=result.output_tokens,
+            latency_ms=result.latency_ms,
+            cached=False,
+            strategy=strategy_label,
+        )
 
     # ── Store in cache ────────────────────────────────────────────────────────
     if cache is not None:

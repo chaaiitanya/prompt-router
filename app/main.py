@@ -32,9 +32,12 @@ from redis.asyncio import Redis
 
 from app.cache import SemanticCache
 from app.config import settings
+from app.cost_tracker import CostTracker
 from app.models import HealthResponse
 from app.routers import gateway as gateway_module
+from app.routers import spend as spend_module
 from app.routers.gateway import router as gateway_router
+from app.routers.spend import router as spend_router
 
 
 # ── Logging setup ─────────────────────────────────────────────────────────────
@@ -65,8 +68,11 @@ async def lifespan(app: FastAPI):
     # ── Startup ──
     redis = Redis.from_url(settings.redis_url, decode_responses=False)
     cache = SemanticCache(redis)
-    # Inject into the gateway module so the route handler can use it
+    tracker = CostTracker(redis)
+    # Inject into route modules so handlers can use them
     gateway_module.cache = cache
+    gateway_module.cost_tracker = tracker
+    spend_module.cost_tracker = tracker
     logger.info("Redis connected | url=%s", settings.redis_url)
     logger.info("Gateway ready")
 
@@ -108,6 +114,7 @@ app.add_middleware(
 
 # Include the gateway router — this adds POST /v1/chat/completions
 app.include_router(gateway_router, tags=["Gateway"])
+app.include_router(spend_router)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Ops"])

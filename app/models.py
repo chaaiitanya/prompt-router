@@ -164,3 +164,27 @@ class HealthResponse(BaseModel):
     status: Literal["ok", "degraded"]
     version: str = "0.1.0"
     environment: str
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Spend analytics responses
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SpendSummaryResponse(BaseModel):
+    """All-time spend totals returned by GET /v1/spend."""
+    total_usd: float
+    request_count: int
+    total_input_tokens: int
+    total_output_tokens: int
+    by_provider: dict[str, float]
+    by_model: dict[str, float]
+    recent_requests: Optional[list[dict]] = None
+
+
+class SpendWindowResponse(BaseModel):
+    """Time-windowed spend returned by GET /v1/spend/since/{seconds}."""
+    window_seconds: float
+    total_usd: float
+    request_count: int
+    by_provider: dict[str, float]
+    by_model: dict[str, float]
