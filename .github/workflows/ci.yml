@@ -10,6 +10,8 @@ jobs:
   test:
     name: Lint & Test
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +26,7 @@ jobs:
         run: pip install -r requirements.txt ruff
 
       - name: Lint (ruff)
-        run: ruff check app/ tests/
+        run: python -m ruff check app/ tests/
 
       - name: Run tests
         # Tests use fake Redis / mock embeddings — no real services needed
@@ -32,4 +34,4 @@ jobs:
           OPENAI_API_KEY: sk-fake
           ANTHROPIC_API_KEY: sk-ant-fake
           GROQ_API_KEY: gsk_fake
-        run: pytest tests/ -v --tb=short
+        run: python -m pytest tests/ -v --tb=short
